@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="httplite",
-    version="0.0.1",
+    version="0.0.2",
     author="Jun Ke",
     author_email="kejun91@gmail.com",
     description="A lightweight http client based on urllib3",
