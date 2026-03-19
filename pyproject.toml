@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "httplite"
-version = "0.1.0"
+version = "1.0.0"
 description = "Lightweight async HTTP client with automatic retry"
 readme = "README.md"
 requires-python = ">=3.9"
