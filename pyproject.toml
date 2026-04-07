@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 dependencies = [
-    "httpx>=0.24",
+    "httpx>=0.24,<1",
     "tenacity>=8.0",
 ]
 
