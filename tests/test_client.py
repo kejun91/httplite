@@ -5,6 +5,14 @@ import pytest
 import respx
 
 from httplite import send_request
+from httplite.client import close, _get_client
+
+
+@pytest.fixture(autouse=True)
+async def _reset_client():
+    """Ensure a fresh client for each test."""
+    yield
+    await close()
 
 
 # --- happy-path tests ---
@@ -47,6 +55,34 @@ async def test_custom_headers_forwarded():
     assert route.calls[0].request.headers["x-custom"] == "val"
 
 
+# --- connection pooling ---
+
+
+@respx.mock
+async def test_shared_client_reused():
+    """Multiple requests reuse the same underlying client."""
+    respx.get("https://example.com/a").mock(return_value=httpx.Response(200))
+    respx.get("https://example.com/b").mock(return_value=httpx.Response(200))
+
+    await send_request("GET", "https://example.com/a")
+    client_after_first = _get_client()
+
+    await send_request("GET", "https://example.com/b")
+    client_after_second = _get_client()
+
+    assert client_after_first is client_after_second
+
+
+async def test_close_releases_client():
+    """close() shuts down the shared client."""
+    client = _get_client()
+    assert not client.is_closed
+
+    await close()
+
+    assert client.is_closed
+
+
 # --- error / validation tests ---
 
 
@@ -64,13 +100,8 @@ async def test_empty_scheme_raises_value_error():
 
 
 @respx.mock
-async def test_retries_on_connection_error(monkeypatch):
-    """send_request retries transient connection errors up to the max attempts."""
-    # Patch retry settings to keep tests fast
-    import httplite.client as client_mod
-
-    monkeypatch.setattr(client_mod, "DEFAULT_MAX_RETRIES", 2)
-
+async def test_retries_on_connection_error():
+    """send_request retries transient connection errors up to max_retries."""
     call_count = 0
 
     async def flaky_handler(request):
@@ -82,21 +113,18 @@ async def test_retries_on_connection_error(monkeypatch):
 
     respx.get("https://example.com/retry").mock(side_effect=flaky_handler)
 
-    # Rebuild the retry decorator with fast settings for testing
-    from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
-
-    # Unwrap the original function from the tenacity wrapper
-    original_fn = send_request.__wrapped__
-
-    patched = retry(
-        stop=stop_after_attempt(2),
-        wait=wait_exponential(multiplier=0, min=0, max=0),
-        retry=retry_if_exception(client_mod._should_retry),
-    )(original_fn)
-
-    resp = await patched("GET", "https://example.com/retry")
+    resp = await send_request("GET", "https://example.com/retry", max_retries=3)
     assert resp.status_code == 200
     assert call_count == 2
+
+
+@respx.mock
+async def test_max_retries_configurable():
+    """max_retries=1 means no retry — fails immediately."""
+    respx.get("https://example.com/fail").mock(side_effect=httpx.ConnectError("refused"))
+
+    with pytest.raises(httpx.ConnectError):
+        await send_request("GET", "https://example.com/fail", max_retries=1)
 
 
 @respx.mock
