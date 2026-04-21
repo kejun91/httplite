@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.1.0 (2026-04-21)
+
+### Bug Fixes
+
+- Sort imports in __init__.py to satisfy ruff I001
+  ([`099aeec`](https://github.com/kejun91/httplite/commit/099aeec401ff673f59ef3670313e1d09cf97fab0))
+
+### Features
+
+- Improve async client retry behavior
+  ([`00ab336`](https://github.com/kejun91/httplite/commit/00ab336a6e7bf7f15a2b45278c0eaa20ae810cdb))
+
+
 ## v1.0.1 (2026-04-07)
 
 ### Bug Fixes
